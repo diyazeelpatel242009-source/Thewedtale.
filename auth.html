@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sign in — The Wed Tale</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="site-nav">
+  <a class="brand" href="index.html">
+    THE WED TALE
+    <small>GUJARAT</small>
+  </a>
+  <a class="text-link" href="index.html">← HOME</a>
+</nav>
+
+<main class="page">
+  <div class="auth-wrap">
+    <p class="eyebrow">YOUR PLACE IN THE TALE</p>
+
+    <h1 id="authHeading">
+      Welcome<br><em>back.</em>
+    </h1>
+
+    <p class="lede">
+      Choose the account that fits you. Couple accounts and
+      business accounts have separate dashboards.
+    </p>
+
+    <div class="auth-switch">
+      <button type="button" id="coupleTab">COUPLE</button>
+      <button type="button" id="businessTab">BUSINESS</button>
+    </div>
+
+    <div class="auth-switch">
+      <button type="button" id="loginTab" class="active">
+        LOG IN
+      </button>
+      <button type="button" id="signupTab">
+        CREATE ACCOUNT
+      </button>
+    </div>
+
+    <form id="authForm">
+      <div class="field hidden" id="nameField">
+        <label for="fullName">FULL NAME / CONTACT NAME</label>
+        <input
+          id="fullName"
+          type="text"
+          autocomplete="name"
+          maxlength="120"
+          placeholder="Your name"
+        >
+      </div>
+
+      <div class="field">
+        <label for="email">EMAIL ADDRESS</label>
+        <input
+          id="email"
+          type="email"
+          required
+          autocomplete="email"
+          placeholder="you@example.com"
+        >
+      </div>
+
+      <div class="field">
+        <label for="password">PASSWORD</label>
+        <input
+          id="password"
+          type="password"
+          required
+          minlength="6"
+          autocomplete="current-password"
+          placeholder="At least 6 characters"
+        >
+      </div>
+
+      <button
+        class="btn"
+        id="submitButton"
+        type="submit"
+        style="width:100%"
+      >
+        LOG IN →
+      </button>
+    </form>
+
+    <div
+      class="notice"
+      id="authNotice"
+      role="status"
+      aria-live="polite"
+    ></div>
+
+    <p class="form-note">
+      If email confirmation is enabled in Supabase, check your
+      inbox after signing up.
+    </p>
+  </div>
+</main>
+
+<footer class="footer">
+  <span>THE WED TALE GUJARAT</span>
+  <a href="directory.html">Browse without an account →</a>
+</footer>
+
+<!-- Supabase library must load before supabase.js and app.js -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script src="app.js"></script>
+
+<script>
+"use strict";
+
+let accountType =
+  new URLSearchParams(location.search).get("type") === "business"
+    ? "business"
+    : "couple";
+
+let mode = "login";
+
+const authEl = (id) => document.getElementById(id);
+
+function paint() {
+  authEl("coupleTab").classList.toggle(
+    "active", accountType === "couple"
+  );
+
+  authEl("businessTab").classList.toggle(
+    "active", accountType === "business"
+  );
+
+  authEl("loginTab").classList.toggle(
+    "active", mode === "login"
+  );
+
+  authEl("signupTab").classList.toggle(
+    "active", mode === "signup"
+  );
+
+  authEl("nameField").classList.toggle(
+    "hidden", mode === "login"
+  );
+
+  authEl("fullName").required = mode === "signup";
+
+  authEl("submitButton").textContent =
+    mode === "login"
+      ? "LOG IN →"
+      : "CREATE " + accountType.toUpperCase() + " ACCOUNT →";
+
+  authEl("authHeading").innerHTML =
+    mode === "login"
+      ? "Welcome<br><em>back.</em>"
+      : "Begin<br><em>your tale.</em>";
+
+  authEl("password").autocomplete =
+    mode === "login" ? "current-password" : "new-password";
+}
+
+authEl("coupleTab").addEventListener("click", () => {
+  accountType = "couple";
+  paint();
+});
+
+authEl("businessTab").addEventListener("click", () => {
+  accountType = "business";
+  paint();
+});
+
+authEl("loginTab").addEventListener("click", () => {
+  mode = "login";
+  clearNotice("authNotice");
+  paint();
+});
+
+authEl("signupTab").addEventListener("click", () => {
+  mode = "signup";
+  clearNotice("authNotice");
+  paint();
+});
+
+authEl("authForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  clearNotice("authNotice");
+
+  if (!configured()) {
+    showNotice("authNotice", configMessage(), "error");
+    return;
+  }
+
+  const button = authEl("submitButton");
+
+  button.disabled = true;
+  button.textContent = "PLEASE WAIT…";
+
+  try {
+    const email = authEl("email").value.trim();
+    const password = authEl("password").value;
+    const fullName = authEl("fullName").value.trim();
+
+    if (mode === "signup") {
+      if (!fullName) {
+        throw new Error("Please enter your full name or contact name.");
+      }
+
+      const { data, error } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            role: accountType
+          },
+          emailRedirectTo: location.origin + "/auth.html"
+        }
+      });
+
+      if (error) throw error;
+
+      if (!data.user) {
+        throw new Error("Supabase did not return a user. Please try again.");
+      }
+
+      /*
+       * If signup immediately creates a session, create the profile.
+       * If email confirmation is required, the profile must be created
+       * after the user confirms and signs in. See the note below.
+       */
+      if (data.session) {
+        const { error: profileError } = await supabaseClient
+          .from("profiles")
+          .upsert(
+            {
+              id: data.user.id,
+              full_name: fullName,
+              role: accountType
+            },
+            { onConflict: "id" }
+          );
+
+        if (profileError) throw profileError;
+
+        showNotice(
+          "authNotice",
+          "Account created. Opening your dashboard…",
+          "success"
+        );
+
+        await routeByRole(data.user);
+      } else {
+        showNotice(
+          "authNotice",
+          "Signup request received. Check your email to confirm your address. Then return here and log in.",
+          "success"
+        );
+
+        mode = "login";
+        paint();
+      }
+
+    } else {
+      const { data, error } =
+        await supabaseClient.auth.signInWithPassword({
+          email,
+          password
+        });
+
+      if (error) throw error;
+
+      const profile = await getProfile(data.user.id);
+
+      if (!profile) {
+        showNotice(
+          "authNotice",
+          "You are signed in, but your profile is missing. Please contact the site administrator.",
+          "error"
+        );
+        return;
+      }
+
+      if (
+        profile.role !== accountType &&
+        profile.role !== "admin"
+      ) {
+        showNotice(
+          "authNotice",
+          "This email belongs to a " + profile.role +
+          " account. Please choose the matching account type.",
+          "error"
+        );
+        return;
+      }
+
+      await routeByRole(data.user);
+    }
+
+  } catch (error) {
+    showNotice(
+      "authNotice",
+      "Could not complete request: " +
+      (error.message || String(error)),
+      "error"
+    );
+
+  } finally {
+    button.disabled = false;
+    paint();
+  }
+});
+
+paint();
+</script>
+
+</body>
+</html>
