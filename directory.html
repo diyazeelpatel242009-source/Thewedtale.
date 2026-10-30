@@ -221,13 +221,7 @@ function renderDirectory() {
 
       const shortDescription = description.slice(0, 140);
 
-      const image = business.cover_image_url
-        ? `<img
-             src="${directoryEscape(business.cover_image_url)}"
-             alt="${name}"
-             loading="lazy"
-           >`
-        : '<span class="smallcaps">THE WED TALE · GUJARAT</span>';
+      const image = '<span class="smallcaps">THE WED TALE · GUJARAT</span>';
 
 
       return `
@@ -303,7 +297,7 @@ async function loadDirectory() {
     const { data, error } = await window.supabaseClient
       .from("businesses")
       .select(
-        "id,name,category,city,description,phone,instagram,website,price_range,status,cover_image_url,created_at"
+        "id,name,category,city,description,phone,instagram,website,price_range,status,created_at"
       )
       .eq("status", "approved")
       .order("created_at", { ascending: false });
