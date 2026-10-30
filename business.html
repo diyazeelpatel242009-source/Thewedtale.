@@ -1,4 +1,591 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Business — The Wed Tale</title><link rel="stylesheet" href="style.css"></head><body><nav class="site-nav"><a class="brand" href="index.html">THE WED TALE<small>GUJARAT</small></a><div class="navlinks" style="display:flex"><a href="directory.html">Directory</a><a href="auth.html?type=couple">Couple login</a></div></nav><main class="page"><p class="eyebrow">THE DIRECTORY</p><div id="loading" class="loading">Loading business profile…</div><div id="content" class="detail-grid hidden"><section class="detail-main"><p id="category" class="eyebrow"></p><h1 id="businessName"></h1><p id="city" class="lede"></p><div class="rule"></div><p id="description" class="description"></p><div id="coverWrap" class="hidden" style="margin-top:25px"><img id="cover" alt="Business cover" style="width:100%;max-height:540px;object-fit:cover"></div><div class="actions"><a id="websiteLink" class="btn-outline hidden" target="_blank" rel="noopener">VISIT WEBSITE →</a><a id="instagramLink" class="btn-outline hidden" target="_blank" rel="noopener">INSTAGRAM →</a></div></section><aside><section class="panel"><h2>Connect with this business.</h2><div id="priceDetail" class="detail-meta"><span>Price range</span><strong id="price"></strong></div><div id="phoneDetail" class="detail-meta"><span>Phone</span><strong id="phone"></strong></div><div id="loginNotice" class="hidden"><p class="muted">Log in with a couple account to send an enquiry.</p><a class="btn" href="auth.html?type=couple">COUPLE LOGIN →</a></div><form id="enquiryForm"><div class="field"><label for="weddingDate">WEDDING DATE</label><input id="weddingDate" type="date"></div><div class="field"><label for="location">WEDDING CITY / LOCATION</label><input id="location" maxlength="200" placeholder="City or venue"></div><div class="field"><label for="guestCount">GUEST COUNT</label><input id="guestCount" type="number" min="1" max="100000" placeholder="e.g. 250"></div><div class="field"><label for="message">YOUR MESSAGE</label><textarea id="message" maxlength="3000" placeholder="Tell the business what you are looking for."></textarea></div><button class="btn" type="submit" style="width:100%">SEND ENQUIRY →</button></form><div id="enquiryNote" class="notice"></div></section></aside></div></main><footer class="footer"><a href="directory.html">← BACK TO DIRECTORY</a><span>THE WED TALE GUJARAT</span></footer><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase.js"></script><script src="app.js"></script><script>
-let currentUser=null,business=null;const id=new URLSearchParams(location.search).get('id');const $=id=>document.getElementById(id);async function init(){if(!configured()){$('loading').textContent=configMessage();return}if(!id){$('loading').textContent='No business ID was provided.';return}const {data,error}=await supabaseClient.from('businesses').select('id,name,category,city,description,phone,instagram,website,price_range,cover_image_url,status').eq('id',id).eq('status','approved').maybeSingle();if(error||!data){$('loading').textContent='This business could not be found or is not currently approved.'+(error?' '+error.message:'');return}business=data;$('category').textContent=business.category||'WEDDING BUSINESS';$('businessName').textContent=business.name;$('city').textContent=business.city||'Gujarat';$('description').textContent=business.description||'A wedding business listed on The Wed Tale.';if(business.cover_image_url){$('cover').src=business.cover_image_url;$('coverWrap').classList.remove('hidden')}if(business.price_range)$('price').textContent=business.price_range;else $('priceDetail').classList.add('hidden');if(business.phone)$('phone').textContent=business.phone;else $('phoneDetail').classList.add('hidden');if(business.website){$('websiteLink').href=business.website;$('websiteLink').classList.remove('hidden')}if(business.instagram){let u=business.instagram.startsWith('http')?business.instagram:'https://instagram.com/'+business.instagram.replace(/^@/,'');$('instagramLink').href=u;$('instagramLink').classList.remove('hidden')}try{const session=await getSession();if(session){const profile=await getProfile(session.user.id);if(profile&&profile.role==='couple')currentUser=session.user}}catch(e){}if(!currentUser){$('enquiryForm').classList.add('hidden');$('loginNotice').classList.remove('hidden')}$('loading').classList.add('hidden');$('content').classList.remove('hidden')}
-$('enquiryForm').addEventListener('submit',async e=>{e.preventDefault();if(!currentUser||!business)return;const btn=e.currentTarget.querySelector('button');btn.disabled=true;btn.textContent='SENDING…';const guest=$('guestCount').value;const payload={couple_id:currentUser.id,business_id:business.id,wedding_date:$('weddingDate').value||null,location:$('location').value.trim()||null,guest_count:guest?Number(guest):null,message:$('message').value.trim()||null};try{const {error}=await supabaseClient.from('enquiries').insert(payload);if(error)throw error;showNotice('enquiryNote','Your enquiry has been sent. Track it from your couple dashboard.','success');e.currentTarget.reset()}catch(err){showNotice('enquiryNote','Could not send enquiry: '+err.message,'error')}finally{btn.disabled=false;btn.textContent='SEND ENQUIRY →'}});init();
-</script></body></html>
+
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <meta name="description" content="Discover wedding businesses across Gujarat with The Wed Tale.">
+
+  <title>Business Profile — The Wed Tale</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!-- Navigation -->
+  <nav class="site-nav">
+
+    <a class="brand" href="index.html">
+      THE WED TALE
+      <small>GUJARAT</small>
+    </a>
+
+    <div class="navlinks" style="display:flex">
+      <a href="directory.html">Directory</a>
+      <a href="auth.html?type=couple">Couple login</a>
+    </div>
+
+  </nav>
+
+
+  <!-- Main content -->
+  <main class="page">
+
+    <p class="eyebrow">THE DIRECTORY</p>
+
+    <div id="loading" class="loading">
+      Loading business profile...
+    </div>
+
+    <div id="content" class="detail-grid hidden">
+
+      <!-- Business information -->
+      <section class="detail-main">
+
+        <p id="category" class="eyebrow"></p>
+
+        <h1 id="businessName"></h1>
+
+        <p id="city" class="lede"></p>
+
+        <div class="rule"></div>
+
+        <p id="description" class="description"></p>
+
+        <div class="actions">
+
+          <a
+            id="websiteLink"
+            class="btn-outline hidden"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            VISIT WEBSITE →
+          </a>
+
+          <a
+            id="instagramLink"
+            class="btn-outline hidden"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            INSTAGRAM →
+          </a>
+
+        </div>
+
+      </section>
+
+
+      <!-- Contact and enquiry section -->
+      <aside>
+
+        <section class="panel">
+
+          <h2>Connect with this business.</h2>
+
+          <div id="priceDetail" class="detail-meta">
+            <span>Price range</span>
+            <strong id="price"></strong>
+          </div>
+
+          <div id="phoneDetail" class="detail-meta">
+            <span>Phone</span>
+            <strong id="phone"></strong>
+          </div>
+
+
+          <!-- Couple login notice -->
+          <div id="loginNotice" class="hidden">
+
+            <p class="muted">
+              Log in with a couple account to send an enquiry.
+            </p>
+
+            <a class="btn" href="auth.html?type=couple">
+              COUPLE LOGIN →
+            </a>
+
+          </div>
+
+
+          <!-- Enquiry form -->
+          <form id="enquiryForm">
+
+            <div class="field">
+              <label for="weddingDate">WEDDING DATE</label>
+
+              <input
+                id="weddingDate"
+                type="date"
+              >
+            </div>
+
+
+            <div class="field">
+              <label for="location">
+                WEDDING CITY / LOCATION
+              </label>
+
+              <input
+                id="location"
+                maxlength="200"
+                placeholder="City or venue"
+              >
+            </div>
+
+
+            <div class="field">
+              <label for="guestCount">GUEST COUNT</label>
+
+              <input
+                id="guestCount"
+                type="number"
+                min="1"
+                max="100000"
+                placeholder="e.g. 250"
+              >
+            </div>
+
+
+            <div class="field">
+              <label for="message">YOUR MESSAGE</label>
+
+              <textarea
+                id="message"
+                maxlength="3000"
+                placeholder="Tell the business what you are looking for."
+              ></textarea>
+            </div>
+
+
+            <button
+              class="btn"
+              type="submit"
+              style="width:100%"
+            >
+              SEND ENQUIRY →
+            </button>
+
+          </form>
+
+
+          <div id="enquiryNote" class="notice"></div>
+
+        </section>
+
+      </aside>
+
+    </div>
+
+  </main>
+
+
+  <!-- Footer -->
+  <footer class="footer">
+
+    <a href="directory.html">
+      ← BACK TO DIRECTORY
+    </a>
+
+    <span>THE WED TALE GUJARAT</span>
+
+  </footer>
+
+
+  <!-- Supabase library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Supabase configuration -->
+  <script src="supabase.js"></script>
+
+  <!-- Shared website functions -->
+  <script src="app.js"></script>
+
+
+  <!-- Business profile functionality -->
+  <script>
+
+    "use strict";
+
+
+    // Separate helper to avoid conflict with app.js
+    const businessEl = (id) => document.getElementById(id);
+
+
+    let currentUser = null;
+    let currentBusiness = null;
+
+
+    // Read business ID from the URL
+    const businessId =
+      new URLSearchParams(window.location.search).get("id");
+
+
+    // Display profile loading error
+    function showProfileError(message) {
+
+      businessEl("loading").textContent = message;
+
+      businessEl("loading").classList.remove("hidden");
+
+      businessEl("content").classList.add("hidden");
+
+    }
+
+
+    // Safely create external website URLs
+    function validExternalUrl(value) {
+
+      if (!value) return null;
+
+      let url = String(value).trim();
+
+      if (!/^https?:\/\//i.test(url)) {
+        url = "https://" + url;
+      }
+
+      try {
+
+        const parsed = new URL(url);
+
+        if (parsed.protocol !== "https:" &&
+            parsed.protocol !== "http:") {
+          return null;
+        }
+
+        return parsed.href;
+
+      } catch (error) {
+        return null;
+      }
+
+    }
+
+
+    // Load business profile
+    async function loadBusinessProfile() {
+
+      try {
+
+        businessEl("loading").textContent =
+          "Loading business profile...";
+
+
+        // Check Supabase
+        if (!window.supabaseClient) {
+
+          throw new Error(
+            "Supabase is not configured. Please check supabase.js."
+          );
+
+        }
+
+
+        // Check business ID
+        if (!businessId) {
+
+          throw new Error(
+            "No business ID was provided. Please return to the directory and select a business."
+          );
+
+        }
+
+
+        // Get approved business
+        const { data, error } = await window.supabaseClient
+
+          .from("businesses")
+
+          .select(
+            "id,name,category,city,description,phone,instagram,website,price_range,status"
+          )
+
+          .eq("id", businessId)
+
+          .eq("status", "approved")
+
+          .maybeSingle();
+
+
+        if (error) {
+          throw error;
+        }
+
+
+        if (!data) {
+
+          throw new Error(
+            "This business could not be found or is not currently approved."
+          );
+
+        }
+
+
+        currentBusiness = data;
+
+
+        // Display business information
+        businessEl("category").textContent =
+          currentBusiness.category || "WEDDING BUSINESS";
+
+
+        businessEl("businessName").textContent =
+          currentBusiness.name || "Business";
+
+
+        businessEl("city").textContent =
+          currentBusiness.city || "Gujarat";
+
+
+        businessEl("description").textContent =
+          currentBusiness.description ||
+          "A wedding business listed on The Wed Tale.";
+
+
+        // Price range
+        if (currentBusiness.price_range) {
+
+          businessEl("price").textContent =
+            currentBusiness.price_range;
+
+        } else {
+
+          businessEl("priceDetail").classList.add("hidden");
+
+        }
+
+
+        // Phone number
+        if (currentBusiness.phone) {
+
+          businessEl("phone").textContent =
+            currentBusiness.phone;
+
+          businessEl("phone").setAttribute(
+            "dir",
+            "auto"
+          );
+
+        } else {
+
+          businessEl("phoneDetail").classList.add("hidden");
+
+        }
+
+
+        // Website link
+        const website = validExternalUrl(
+          currentBusiness.website
+        );
+
+        if (website) {
+
+          businessEl("websiteLink").href = website;
+
+          businessEl("websiteLink").classList.remove("hidden");
+
+        }
+
+
+        // Instagram link
+        if (currentBusiness.instagram) {
+
+          let instagram = currentBusiness.instagram.trim();
+
+          let instagramUrl;
+
+          if (/^https?:\/\//i.test(instagram)) {
+
+            instagramUrl = validExternalUrl(instagram);
+
+          } else {
+
+            instagram = instagram.replace(/^@/, "");
+
+            if (/^[a-zA-Z0-9._]+$/.test(instagram)) {
+
+              instagramUrl =
+                "https://www.instagram.com/" + instagram + "/";
+
+            }
+
+          }
+
+
+          if (instagramUrl) {
+
+            businessEl("instagramLink").href = instagramUrl;
+
+            businessEl("instagramLink").classList.remove("hidden");
+
+          }
+
+        }
+
+
+        // Check whether a couple is logged in
+        try {
+
+          const session = await getSession();
+
+          if (session) {
+
+            const profile = await getProfile(session.user.id);
+
+            if (profile && profile.role === "couple") {
+
+              currentUser = session.user;
+
+            }
+
+          }
+
+        } catch (sessionError) {
+
+          console.error(
+            "Could not check couple login:",
+            sessionError
+          );
+
+        }
+
+
+        // Show enquiry form only to couple accounts
+        if (!currentUser) {
+
+          businessEl("enquiryForm").classList.add("hidden");
+
+          businessEl("loginNotice").classList.remove("hidden");
+
+        }
+
+
+        // Show loaded profile
+        businessEl("loading").classList.add("hidden");
+
+        businessEl("content").classList.remove("hidden");
+
+
+      } catch (error) {
+
+        console.error(
+          "Business profile loading error:",
+          error
+        );
+
+        showProfileError(
+          "Could not load business profile: " +
+          (error.message || "Unknown error")
+        );
+
+      }
+
+    }
+
+
+    // Send enquiry
+    businessEl("enquiryForm").addEventListener(
+      "submit",
+      async function(event) {
+
+        event.preventDefault();
+
+
+        if (!currentUser || !currentBusiness) {
+
+          businessEl("enquiryNote").textContent =
+            "Please log in with a couple account first.";
+
+          return;
+
+        }
+
+
+        const form = event.currentTarget;
+
+        const button = form.querySelector("button");
+
+        button.disabled = true;
+
+        button.textContent = "SENDING...";
+
+
+        const guestCount =
+          businessEl("guestCount").value;
+
+
+        const payload = {
+
+          couple_id: currentUser.id,
+
+          business_id: currentBusiness.id,
+
+          wedding_date:
+            businessEl("weddingDate").value || null,
+
+          location:
+            businessEl("location").value.trim() || null,
+
+          guest_count:
+            guestCount ? Number(guestCount) : null,
+
+          message:
+            businessEl("message").value.trim() || null
+
+        };
+
+
+        try {
+
+          const { error } = await window.supabaseClient
+
+            .from("enquiries")
+
+            .insert(payload);
+
+
+          if (error) {
+            throw error;
+          }
+
+
+          showNotice(
+            "enquiryNote",
+            "Your enquiry has been sent. Track it from your couple dashboard.",
+            "success"
+          );
+
+          form.reset();
+
+
+        } catch (error) {
+
+          showNotice(
+            "enquiryNote",
+            "Could not send enquiry: " + error.message,
+            "error"
+          );
+
+        } finally {
+
+          button.disabled = false;
+
+          button.textContent = "SEND ENQUIRY →";
+
+        }
+
+      }
+    );
+
+
+    // Start profile loading
+    loadBusinessProfile();
+
+  </script>
+
+</body>
+</html>
