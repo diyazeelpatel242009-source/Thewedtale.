@@ -1,4 +1,379 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Wedding Directory — The Wed Tale</title><link rel="stylesheet" href="style.css"></head><body><nav class="site-nav"><a class="brand" href="index.html">THE WED TALE<small>GUJARAT</small></a><button class="nav-toggle" id="navToggle">MENU</button><div class="navlinks" id="navLinks"><a href="index.html">Home</a><a href="auth.html?type=couple">Couple account</a><a href="auth.html?type=business">List business</a></div></nav><main class="page"><header class="page-heading"><div><p class="eyebrow">THE DIRECTORY</p><h1 class="page-title">Find your<br><em>people.</em></h1></div><p class="lede">Search approved wedding venues and vendors across Gujarat. New listings appear after review.</p></header><div class="filters"><input id="searchInput" type="search" placeholder="Search name or service…"><select id="categoryFilter"><option value="">All categories</option><option>Venue</option><option>Photographer</option><option>Planner</option><option>Decorator</option><option>Catering</option><option>Makeup Artist</option><option>Mehendi</option><option>Jewellery</option><option>Bridal Wear</option><option>Groom Wear</option><option>Invitation</option><option>Entertainment</option><option>Other</option></select><input id="cityFilter" type="search" placeholder="City"><button class="btn-outline" id="clearFilters">CLEAR</button></div><div class="section-head"><p id="resultCount" class="smallcaps">Loading directory…</p><a class="text-link" href="auth.html?type=business">List your business →</a></div><section id="businessGrid" class="grid"><div class="empty">Loading approved businesses…</div></section></main><footer class="footer"><span>© THE WED TALE GUJARAT</span><a href="index.html">Home</a></footer><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase.js"></script><script src="app.js"></script><script>
-let businesses=[];const $=id=>document.getElementById(id);function render(){const q=$('searchInput').value.trim().toLowerCase(),cat=$('categoryFilter').value.toLowerCase(),city=$('cityFilter').value.trim().toLowerCase();const list=businesses.filter(b=>(!q||[b.name,b.category,b.city,b.description].some(v=>String(v||'').toLowerCase().includes(q)))&&(!cat||String(b.category||'').toLowerCase()===cat)&&(!city||String(b.city||'').toLowerCase().includes(city)));$('resultCount').textContent=list.length+' APPROVED '+(list.length===1?'BUSINESS':'BUSINESSES');$('businessGrid').innerHTML=list.length?list.map(b=>`<article class="business-card"><div class="card-image">${b.cover_image_url?`<img src="${esc(b.cover_image_url)}" alt="${esc(b.name)}" loading="lazy">`:'<span class="smallcaps">THE WED TALE · GUJARAT</span>'}</div><div class="card-body"><span class="eyebrow">${esc(b.category||'Wedding business')}</span><h2>${esc(b.name)}</h2><p>${esc(b.city||'Gujarat')}${b.price_range?' · '+esc(b.price_range):''}</p><p>${esc((b.description||'Discover this wedding professional.').slice(0,140))}${(b.description||'').length>140?'…':''}</p><div class="card-foot"><a class="text-link" href="business.html?id=${encodeURIComponent(b.id)}">VIEW PROFILE →</a></div></div></article>`).join(''):'<div class="empty">No approved listings match these filters yet. Try a different search, or check back soon.</div>'}
-async function init(){if(!configured()){$('businessGrid').innerHTML='<div class="empty">'+esc(configMessage())+'</div>';return}const {data,error}=await supabaseClient.from('businesses').select('id,name,category,city,description,phone,instagram,website,price_range,status,cover_image_url,created_at').eq('status','approved').order('created_at',{ascending:false});if(error){$('businessGrid').innerHTML='<div class="empty">Could not load directory: '+esc(error.message)+'</div>';return}businesses=data||[];const params=new URLSearchParams(location.search);if(params.get('category'))$('categoryFilter').value=params.get('category');render()}['searchInput','categoryFilter','cityFilter'].forEach(id=>$(id).addEventListener('input',render));$('clearFilters').onclick=()=>{$('searchInput').value='';$('categoryFilter').value='';$('cityFilter').value='';render()};init();
-</script></body></html>
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Discover approved wedding venues and vendors across Gujarat.">
+  <title>Wedding Directory — The Wed Tale</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<nav class="site-nav">
+  <a class="brand" href="index.html">
+    THE WED TALE
+    <small>GUJARAT</small>
+  </a>
+
+  <button class="nav-toggle" id="navToggle">MENU</button>
+
+  <div class="navlinks" id="navLinks">
+    <a href="index.html">Home</a>
+    <a href="auth.html?type=couple">Couple account</a>
+    <a href="auth.html?type=business">List business</a>
+  </div>
+</nav>
+
+<main class="page">
+
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">THE DIRECTORY</p>
+      <h1 class="page-title">
+        Find your<br>
+        <em>people.</em>
+      </h1>
+    </div>
+
+    <p class="lede">
+      Search approved wedding venues and vendors across Gujarat.
+      New listings appear after review.
+    </p>
+  </header>
+
+  <div class="filters">
+
+    <input
+      id="searchInput"
+      type="search"
+      placeholder="Search name or service..."
+    >
+
+    <select id="categoryFilter">
+      <option value="">All categories</option>
+      <option>Venue</option>
+      <option>Photographer</option>
+      <option>Planner</option>
+      <option>Decorator</option>
+      <option>Catering</option>
+      <option>Makeup Artist</option>
+      <option>Mehendi</option>
+      <option>Jewellery</option>
+      <option>Bridal Wear</option>
+      <option>Groom Wear</option>
+      <option>Invitation</option>
+      <option>Entertainment</option>
+      <option>Other</option>
+    </select>
+
+    <input
+      id="cityFilter"
+      type="search"
+      placeholder="City"
+    >
+
+    <button class="btn-outline" id="clearFilters">
+      CLEAR
+    </button>
+
+  </div>
+
+  <div class="section-head">
+    <p id="resultCount" class="smallcaps">
+      Loading directory...
+    </p>
+
+    <a class="text-link" href="auth.html?type=business">
+      List your business →
+    </a>
+  </div>
+
+  <section id="businessGrid" class="grid">
+    <div class="empty">
+      Loading approved businesses...
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <span>© THE WED TALE GUJARAT</span>
+  <a href="index.html">Home</a>
+</footer>
+
+<!-- Supabase library -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- Project configuration -->
+<script src="supabase.js"></script>
+
+<!-- Shared website functions -->
+<script src="app.js"></script>
+
+<!-- Directory functionality -->
+<script>
+
+"use strict";
+
+let directoryBusinesses = [];
+
+const directoryEl = (id) => document.getElementById(id);
+
+
+// Safe text escaping
+function directoryEscape(value) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  }[character]));
+}
+
+
+// Display messages
+function directoryMessage(message) {
+  directoryEl("businessGrid").innerHTML =
+    '<div class="empty">' +
+    directoryEscape(message) +
+    '</div>';
+}
+
+
+// Render business cards
+function renderDirectory() {
+
+  const search = directoryEl("searchInput")
+    .value.trim().toLowerCase();
+
+  const category = directoryEl("categoryFilter")
+    .value.trim().toLowerCase();
+
+  const city = directoryEl("cityFilter")
+    .value.trim().toLowerCase();
+
+
+  const filteredBusinesses = directoryBusinesses.filter(business => {
+
+    const matchesSearch =
+      !search ||
+      [
+        business.name,
+        business.category,
+        business.city,
+        business.description
+      ].some(value =>
+        String(value || "").toLowerCase().includes(search)
+      );
+
+    const matchesCategory =
+      !category ||
+      String(business.category || "").toLowerCase() === category;
+
+    const matchesCity =
+      !city ||
+      String(business.city || "").toLowerCase().includes(city);
+
+    return matchesSearch && matchesCategory && matchesCity;
+
+  });
+
+
+  directoryEl("resultCount").textContent =
+    filteredBusinesses.length +
+    " APPROVED " +
+    (filteredBusinesses.length === 1 ? "BUSINESS" : "BUSINESSES");
+
+
+  if (filteredBusinesses.length === 0) {
+
+    directoryEl("businessGrid").innerHTML =
+      '<div class="empty">' +
+      'No approved listings match these filters yet. ' +
+      'Try a different search, or check back soon.' +
+      '</div>';
+
+    return;
+  }
+
+
+  directoryEl("businessGrid").innerHTML =
+    filteredBusinesses.map(business => {
+
+      const name = directoryEscape(business.name);
+      const categoryName = directoryEscape(
+        business.category || "Wedding business"
+      );
+
+      const businessCity = directoryEscape(
+        business.city || "Gujarat"
+      );
+
+      const price = business.price_range
+        ? " · " + directoryEscape(business.price_range)
+        : "";
+
+      const description = business.description ||
+        "Discover this wedding professional.";
+
+      const shortDescription = description.slice(0, 140);
+
+      const image = business.cover_image_url
+        ? `<img
+             src="${directoryEscape(business.cover_image_url)}"
+             alt="${name}"
+             loading="lazy"
+           >`
+        : '<span class="smallcaps">THE WED TALE · GUJARAT</span>';
+
+
+      return `
+        <article class="business-card">
+
+          <div class="card-image">
+            ${image}
+          </div>
+
+          <div class="card-body">
+
+            <span class="eyebrow">
+              ${categoryName}
+            </span>
+
+            <h2>${name}</h2>
+
+            <p>
+              ${businessCity}${price}
+            </p>
+
+            <p>
+              ${directoryEscape(shortDescription)}
+              ${description.length > 140 ? "…" : ""}
+            </p>
+
+            <div class="card-foot">
+              <a
+                class="text-link"
+                href="business.html?id=${encodeURIComponent(business.id)}"
+              >
+                VIEW PROFILE →
+              </a>
+            </div>
+
+          </div>
+
+        </article>
+      `;
+
+    }).join("");
+
+}
+
+
+// Load approved businesses from Supabase
+async function loadDirectory() {
+
+  const grid = directoryEl("businessGrid");
+
+  const count = directoryEl("resultCount");
+
+
+  try {
+
+    count.textContent = "LOADING DIRECTORY...";
+
+    grid.innerHTML =
+      '<div class="empty">Loading approved businesses...</div>';
+
+
+    // Check Supabase configuration
+    if (!window.supabaseClient) {
+
+      throw new Error(
+        "Supabase is not configured. Please check supabase.js."
+      );
+
+    }
+
+
+    // Fetch approved business listings
+    const { data, error } = await window.supabaseClient
+      .from("businesses")
+      .select(
+        "id,name,category,city,description,phone,instagram,website,price_range,status,cover_image_url,created_at"
+      )
+      .eq("status", "approved")
+      .order("created_at", { ascending: false });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    directoryBusinesses = data || [];
+
+
+    // Read category from URL if provided
+    const parameters = new URLSearchParams(
+      window.location.search
+    );
+
+    const selectedCategory = parameters.get("category");
+
+    if (selectedCategory) {
+      directoryEl("categoryFilter").value = selectedCategory;
+    }
+
+
+    // Display results
+    renderDirectory();
+
+  } catch (error) {
+
+    console.error("Directory error:", error);
+
+    count.textContent = "DIRECTORY ERROR";
+
+    directoryMessage(
+      "Could not load directory: " +
+      (error.message || "Unknown error")
+    );
+
+  }
+
+}
+
+
+// Search and filter events
+["searchInput", "categoryFilter", "cityFilter"].forEach(id => {
+
+  directoryEl(id).addEventListener("input", renderDirectory);
+
+  directoryEl(id).addEventListener("change", renderDirectory);
+
+});
+
+
+// Clear filters
+directoryEl("clearFilters").addEventListener("click", () => {
+
+  directoryEl("searchInput").value = "";
+  directoryEl("categoryFilter").value = "";
+  directoryEl("cityFilter").value = "";
+
+  renderDirectory();
+
+});
+
+
+// Start directory
+loadDirectory();
+
+</script>
+
+</body>
+</html>
